@@ -93,6 +93,12 @@ bool loadMedia()
 	as = SDL_LoadBMP("keys/as.bmp");
 	ad = SDL_LoadBMP("keys/ad.bmp");
 	sd = SDL_LoadBMP("keys/sd.bmp");
+
+	//Apply the image
+	SDL_BlitSurface(blank, NULL, gScreenSurface, NULL);
+	//Update the surface
+	SDL_UpdateWindowSurface(gWindow);
+
 	if (blank == NULL)
 	{
 		printf("Unable to load image %s! SDL Error: %s\n", "blank.bmp", SDL_GetError());
@@ -128,13 +134,18 @@ void close()
 }
 
 void connectToServer() {
-	printf("Connecting to server...");
+
+	char input[10];
+	printf("Enter IP address of server:");
+	std::cin >> input;
+	// Handle input errors and defaults here.
+	std::cout << "Conencting to server " << input << std::endl;
 
 	ENetAddress address;
 	ENetEvent event;
 	ENetPeer *peer;
 	/* Connect to some.server.net:1234. */
-	enet_address_set_host(&address, "127.0.0.1");
+	enet_address_set_host(&address, input);
 	address.port = 1234;
 	/* Initiate the connection, allocating the two channels 0 and 1. */
 	peer = enet_host_connect(client, &address, 2, 0);
@@ -170,6 +181,7 @@ void connectToServer() {
 // Starts up the client to connect to the remote machine.
 // In this case it is 192.168.1.50
 void startClient() {
+
 	printf("Starting client.");
 	client = enet_host_create(NULL /* create a client host */,
 		1 /* only allow 1 outgoing connection */,
@@ -188,6 +200,7 @@ void startClient() {
 
 void shutdownAll() {
 	enet_host_destroy(client);
+	atexit(enet_deinitialize);
 	connected_peer = NULL;
 	printf("Server and client shut down.");
 }
@@ -198,7 +211,7 @@ void sendPacket() {
 	}
 	else {
 		printf("Sent " + currentKeys[0]+ currentKeys[1]);
-		ENetPacket *packet = enet_packet_create(currentKeys, strlen("packet") + 1, ENET_PACKET_FLAG_UNRELIABLE_FRAGMENT);
+		ENetPacket *packet = enet_packet_create(currentKeys, strlen("packet") + 1, ENET_PACKET_FLAG_RELIABLE);
 
 		/* Extend the packet so and append the string "foo", so it now */
 		/* contains "packetfoo\0"
@@ -231,25 +244,28 @@ int main(int argc, char* args[])
 	//Start up SDL and create window
 	if (!init())
 	{
-		printf("Failed to initialize!\n");
+		// Maybe here too
+		//printf("Failed to initialize!\n");
 	}
 	else
 	{
 		//Load media
 		if (!loadMedia())
 		{
-			printf("Failed to load media!\n");
+			// Weird stuff here as well
+			//printf("Failed to load media!\n");
 		}
 		else
 		{
 			// Initialize ENet
 			if (enet_initialize() != 0)
 			{
-				fprintf(stderr, "An error occurred while initializing ENet.\n");
+				// Something wonky is going on here
+				//fprintf(stderr, "An error occurred while initializing ENet.\n");
 				return EXIT_FAILURE;
 			}
-			atexit(enet_deinitialize);
-
+			//atexit(enet_deinitialize);W
+			
 			//Main loop flag
 			bool quit = false;
 
@@ -263,11 +279,6 @@ int main(int argc, char* args[])
 				//Handle events on queue
 				while (SDL_PollEvent(&e) != 0)
 				{
-					//Apply the image
-					//SDL_BlitSurface(blank, NULL, gScreenSurface, NULL);
-
-					//Update the surface
-					//SDL_UpdateWindowSurface(gWindow);
 
 					//If a key was pressed
 					if (e.type == SDL_KEYDOWN && e.key.repeat == 0)
@@ -275,11 +286,11 @@ int main(int argc, char* args[])
 						//Adjust the velocity
 						switch (e.key.keysym.sym)
 						{
+						case SDLK_F1: printf("Connecting.."); startClient(); break;
 						case SDLK_w: printf("W"); currentKeys[keyCount] = 'W'; keyCount++; applyupdate(w); break;
 						case SDLK_a: printf("A"); currentKeys[keyCount] = 'A'; keyCount++; applyupdate(a); break;
 						case SDLK_s: printf("S"); currentKeys[keyCount] = 'S'; keyCount++; applyupdate(s); break;
 						case SDLK_d: printf("D"); currentKeys[keyCount] = 'D'; keyCount++; applyupdate(d); break;
-						case SDLK_c: startClient(); break;
 						case SDLK_q: shutdownAll(); quit = true; break;
 						case SDLK_p: sendPacket(); break;
 						}
@@ -306,7 +317,7 @@ int main(int argc, char* args[])
 				}
 
 				// Send packet update to server in 100 milliseconds.
-				Sleep(100);
+				Sleep(50);
 				if (connected_peer != NULL) {
 					sendPacket();
 				}
